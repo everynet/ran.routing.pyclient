@@ -1,0 +1,87 @@
+[tool.poetry]
+name = "ran"
+version = "0.1.0"
+description = "SDK for Radio Access Network API"
+authors = ["Alexey Zakharov <alexey.zakharov@everynet.com>", "Alexander Golubev <	alexander.golubev@everynet.com>"]
+
+license = "MIT"  # TODO: Ensure used licence stype
+readme = "README.md"
+homepage = "..."
+repository = "https://github.com/..."
+keywords = ["lora", "everynet", "ran"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Topic :: Internet :: WWW/HTTP",
+  "Framework :: aiohttp",
+  "Topic :: Software Development :: Libraries",
+]
+include = [
+    "LICENSE",
+]
+
+packages = [
+    { include = "ran" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+aiohttp = "^3.8.1"
+pydantic = "^1.9.1"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.961"
+pytest = "^7.1.2"
+pytest-asyncio = "^0.18.3"
+pytest-cov = "^3.0.0"
+black = "^22.3.0"
+isort = "^5.10.1"
+Sphinx = "^5.0.1"
+autodoc-pydantic = "^1.7.2"
+myst-parser = "^0.18.0"
+sphinx-material = "^0.0.35"
+
+
+[tool.isort]
+profile = "black"
+line_length = 120
+
+[tool.black]
+line-length = 120
+include = '\.pyi?$'
+target-version = ["py39", "py37"]
+preview = true
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.pip-cache
+  | \.poetry
+  | \.venv
+  | \.vscode
+  | _build
+  | buck-out
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+
+[build-system]
+requires = ["poetry-core>=1.0.8"]
+build-backend = "poetry.core.masonry.api"

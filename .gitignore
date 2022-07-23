@@ -1,0 +1,46 @@
+.DS_Store
+# Common VCS dirs
+.bzr/
+.bzrignore
+.hg/
+.hgignore
+.svn/
+# Common backup files
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+# Various IDEs
+.project
+.idea/
+*.tmproj
+.vscode/
+
+# Werf local files
+.werf_secret_key
+.helm/charts/*.tgz
+
+# swap
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+# session
+Session.vim
+# temporary
+.netrwhist
+__pycache__/
+*.py[cod]
+src/lib
+tools/lib
+tools/proto
+src/templates
+.ropeproject
+docker/*.tar
+.idea*
+.vscode
+infra/aws/lambda/ecs-ec2-autoscale.py.zip
+.python-version
+*.env
+.coverage
+htmlcov/
+*.mypy_cache
