@@ -2,8 +2,8 @@ import pytest
 
 from ran.routing.core import Core
 from ran.routing.core.domains import Device
+from ran.routing.core.routing_table import exceptions
 from ran.routing.core.routing_table.consts import ApiErrorCode
-from ran.routing.core.routing_table.exceptions import ApiUnknownError, ApiValidationFailedError, ParameterError
 
 
 def device_as_insert_params(device: Device):
@@ -77,49 +77,34 @@ async def test_routing_table_insert(core: Core, client_session, device):
 )
 async def test_routing_table_insert_param_error(core: Core, client_session, device):
     device_dict, device_model = device
-    with pytest.raises(ParameterError):
+    with pytest.raises(exceptions.ParameterError):
         await core.routing_table.insert(**device_as_insert_params(device_model))
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "device",
-    [
-        {"dev_eui": 0xFFFFFFFFFFFFFFFF, "active_dev_addr": 0xFFFFFFFF},
-    ],
+    [{"dev_eui": 0xFFFFFFFFFFFFFFFF, "active_dev_addr": 0xFFFFFFFF}],
     indirect=True,
 )
-async def test_routing_table_insert_remote_validation_error(core: Core, client_session, device):
+@pytest.mark.parametrize(
+    "api_error, exception",
+    [
+        (ApiErrorCode.UNKNOWN, exceptions.ApiUnknownError),
+        (ApiErrorCode.UNAUTHORIZED, exceptions.ApiUnauthorizedError),
+        (ApiErrorCode.VALIDATION_FAILED, exceptions.ApiValidationFailedError),
+        (ApiErrorCode.DEVICE_ALREADY_EXISTS, exceptions.ApiDeviceAlreadyExistsError),
+        (ApiErrorCode.DEVICES_LIMIT_EXHAUSTED, exceptions.ApiDevicesLimitExhaustedError),
+    ],
+)
+async def test_routing_table_insert_api_error(core: Core, client_session, device, api_error, exception):
     device_dict, device_model = device
 
     client_session.post.return_value.__aenter__.return_value.ok = False
     client_session.post.return_value.__aenter__.return_value.status = 422
-    client_session.post.return_value.__aenter__.return_value.json.return_value = {
-        "detail": {"error_code": ApiErrorCode.VALIDATION_FAILED}
-    }
+    client_session.post.return_value.__aenter__.return_value.json.return_value = {"detail": {"error_code": api_error}}
 
-    with pytest.raises(ApiValidationFailedError):
-        await core.routing_table.insert(**device_as_insert_params(device_model))
-    client_session.post.assert_called_with(
-        core._Core__api_endpoint_schema.routing / "devices/insert", json=device_dict_as_insert_dict(device_dict)
-    )
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "device",
-    [
-        {"dev_eui": 0xFFFFFFFFFFFFFFFF, "active_dev_addr": 0xFFFFFFFF},
-    ],
-    indirect=True,
-)
-async def test_routing_table_insert_remote_unknown_error(core: Core, client_session, device):
-    device_dict, device_model = device
-
-    client_session.post.return_value.__aenter__.return_value.ok = False
-    client_session.post.return_value.__aenter__.return_value.status = 418
-
-    with pytest.raises(ApiUnknownError):
+    with pytest.raises(exception):
         await core.routing_table.insert(**device_as_insert_params(device_model))
     client_session.post.assert_called_with(
         core._Core__api_endpoint_schema.routing / "devices/insert", json=device_dict_as_insert_dict(device_dict)

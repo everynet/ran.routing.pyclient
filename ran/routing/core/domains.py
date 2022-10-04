@@ -2,7 +2,7 @@ import typing as t
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, conint, conlist, root_validator, validator
+from pydantic import BaseModel, conint, conlist, root_validator, validator, constr
 
 
 class UpstreamRejectResultCode(str, Enum):
@@ -33,6 +33,14 @@ class Device(BaseModel):
                 "One of the following values must be specified: JoinEUI (for OTAA device) or DevAddr (for ABP device)"
             )
         return values
+
+
+class MulticastGroup(BaseModel):
+    id: int
+    created_at: datetime
+    name: constr(max_length=255)
+    addr: int
+    devices: t.List[int]
 
 
 #################
@@ -145,6 +153,14 @@ class DownstreamMessage(BaseModel):
     transaction_id: conint(gt=0)
     dev_eui: conint(ge=0, le=0xFFFFFFFFFFFFFFFF)
     target_dev_addr: t.Optional[conint(ge=0, le=0xFFFFFFFF)]
+    tx_window: TransmissionWindow
+    phy_payload: bytes
+
+
+class MulticastDownstreamMessage(BaseModel):
+    protocol_version: conint(gt=0)
+    transaction_id: conint(gt=0)
+    addr: conint(ge=0, le=0xFFFFFFFF)
     tx_window: TransmissionWindow
     phy_payload: bytes
 

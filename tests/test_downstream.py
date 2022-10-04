@@ -8,6 +8,7 @@ from ran.routing.core.domains import (
     DownstreamMessage,
     DownstreamResultCode,
     DownstreamResultMessage,
+    MulticastDownstreamMessage,
 )
 
 
@@ -183,3 +184,111 @@ async def test_downstream_stream_result(core: Core, client_session_ws):
 
         async for msg in downstream_conn.stream():
             assert msg == client_session_ws.recvd_messages[0]
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Multicast downstream
+
+
+@pytest.mark.asyncio
+async def test_downstream_send_multicast_downstream_ctx(core: Core, client_session_ws):
+    async with core.downstream() as downstream_conn:
+        await downstream_conn.send_multicast_downstream(
+            transaction_id=1,
+            addr=1,
+            tx_window={"delay": 1, "radio": {"frequency": 868300000, "lora": {"spreading": 1, "bandwidth": 1}}},
+            phy_payload=b"fff",
+        )
+        assert client_session_ws.sent_messages[0] == json.dumps(
+            {
+                "ProtocolVersion": 1,
+                "TransactionID": 1,
+                "Addr": 1,
+                "TxWindow": {"Radio": {"Frequency": 868300000, "LoRa": {"Spreading": 1, "Bandwidth": 1}}, "Delay": 1},
+                "PHYPayload": [102, 102, 102],
+            }
+        )
+        # Will stop listener
+        client_session_ws.shutdown.set()
+
+
+@pytest.mark.asyncio
+async def test_downstream_send_multicast_downstream(core: Core, client_session_ws):
+    downstream_conn = await core.downstream.create_connection()
+    await downstream_conn.send_multicast_downstream(
+        transaction_id=1,
+        addr=1,
+        tx_window={"delay": 1, "radio": {"frequency": 868300000, "lora": {"spreading": 1, "bandwidth": 1}}},
+        phy_payload=b"fff",
+    )
+    assert client_session_ws.sent_messages[0] == json.dumps(
+        {
+            "ProtocolVersion": 1,
+            "TransactionID": 1,
+            "Addr": 1,
+            "TxWindow": {"Radio": {"Frequency": 868300000, "LoRa": {"Spreading": 1, "Bandwidth": 1}}, "Delay": 1},
+            "PHYPayload": [102, 102, 102],
+        }
+    )
+    # Unblocking listener
+    client_session_ws.shutdown.set()
+
+    downstream_conn.close()
+    await downstream_conn.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_downstream_send_multicast_downstream_obj_ctx(core: Core, client_session_ws):
+    async with core.downstream() as downstream_conn:
+        await downstream_conn.send_downstream_object(
+            MulticastDownstreamMessage.parse_obj(
+                dict(
+                    protocol_version=1,
+                    transaction_id=1,
+                    addr=1,
+                    tx_window={"delay": 1, "radio": {"frequency": 868300000, "lora": {"spreading": 1, "bandwidth": 1}}},
+                    phy_payload=b"fff",
+                )
+            )
+        )
+        assert client_session_ws.sent_messages[0] == json.dumps(
+            {
+                "ProtocolVersion": 1,
+                "TransactionID": 1,
+                "Addr": 1,
+                "TxWindow": {"Radio": {"Frequency": 868300000, "LoRa": {"Spreading": 1, "Bandwidth": 1}}, "Delay": 1},
+                "PHYPayload": [102, 102, 102],
+            }
+        )
+        # Will stop listener
+        client_session_ws.shutdown.set()
+
+
+@pytest.mark.asyncio
+async def test_downstream_send_multicast_downstream_obj(core: Core, client_session_ws):
+    downstream_conn = await core.downstream.create_connection()
+    await downstream_conn.send_downstream_object(
+        MulticastDownstreamMessage.parse_obj(
+            dict(
+                protocol_version=1,
+                transaction_id=1,
+                addr=1,
+                tx_window={"delay": 1, "radio": {"frequency": 868300000, "lora": {"spreading": 1, "bandwidth": 1}}},
+                phy_payload=b"fff",
+            )
+        )
+    )
+    assert client_session_ws.sent_messages[0] == json.dumps(
+        {
+            "ProtocolVersion": 1,
+            "TransactionID": 1,
+            "Addr": 1,
+            "TxWindow": {"Radio": {"Frequency": 868300000, "LoRa": {"Spreading": 1, "Bandwidth": 1}}, "Delay": 1},
+            "PHYPayload": [102, 102, 102],
+        }
+    )
+    # Unblocking listener
+    client_session_ws.shutdown.set()
+
+    downstream_conn.close()
+    await downstream_conn.wait_closed()

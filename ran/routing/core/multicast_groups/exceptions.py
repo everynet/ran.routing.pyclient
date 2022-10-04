@@ -1,8 +1,9 @@
 from typing import Any, Dict, List, Optional
+
 from .consts import ApiErrorCode
 
 
-class RoutingTableError(Exception):
+class MulticastGroupTableError(Exception):
     pass
 
 
@@ -10,7 +11,7 @@ class RoutingTableError(Exception):
 # Client errors
 
 
-class ClientError(RoutingTableError):
+class ClientError(MulticastGroupTableError):
     """
     Exception, raised when local client error happened
     """
@@ -30,7 +31,7 @@ class ParameterError(ClientError):
 # Api errors
 
 
-class ApiError(RoutingTableError):
+class ApiError(MulticastGroupTableError):
     """
     Exception, raised when API respond with some error.
     All inheritors will have "error_description: str" and "error_code: str" attributes.
@@ -83,14 +84,19 @@ class ApiValidationFailedError(ApiError):
         super().__init__(error_description=error_description, error_code=ApiErrorCode.VALIDATION_FAILED)
 
 
-class ApiDeviceAlreadyExistsError(ApiError):
+class ApiMulticastGroupAlreadyExistsError(ApiError):
     def __init__(self, error_description: str) -> None:
-        super().__init__(error_description=error_description, error_code=ApiErrorCode.DEVICE_ALREADY_EXISTS)
+        super().__init__(error_description=error_description, error_code=ApiErrorCode.MC_ALREADY_EXISTS)
 
 
-class ApiDevicesLimitExhaustedError(ApiError):
+class ApiMulticastGroupAlreadyContainsDeviceError(ApiError):
     def __init__(self, error_description: str) -> None:
-        super().__init__(error_description=error_description, error_code=ApiErrorCode.DEVICES_LIMIT_EXHAUSTED)
+        super().__init__(error_description=error_description, error_code=ApiErrorCode.MC_ALREADY_CONTAINS_DEVICE)
+
+
+class ApiMulticastGroupNotFoundError(ApiError):
+    def __init__(self, error_description: str) -> None:
+        super().__init__(error_description=error_description, error_code=ApiErrorCode.MC_NOT_FOUND)
 
 
 class ApiDeviceNotFoundError(ApiError):

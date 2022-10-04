@@ -38,6 +38,7 @@ def cast_keys_to_snake_case(model_dict: t.Dict[str, t.Any]) -> t.Dict[str, t.Any
         "FHSS": "fhss",
         "RSSI": "rssi",
         "SNR": "snr",
+        "TMMS": "tmms",
     }
 
     for key in list(model_dict.keys()):
@@ -71,6 +72,7 @@ def cast_keys_to_camel_case(model_dict: t.Dict[str, t.Any]) -> t.Dict[str, t.Any
         "fhss": "FHSS",
         "rssi": "RSSI",
         "snr": "SNR",
+        "tmms": "TMMS",
     }
 
     for key in list(model_dict.keys()):
@@ -132,6 +134,13 @@ UpstreamMessageSerializer: GenericJSONSerializer[domains.UpstreamMessage] = Gene
 
 DownstreamMessageSerializer: GenericJSONSerializer[domains.DownstreamMessage] = GenericJSONSerializer(
     domains.DownstreamMessage,
+    extra_parse=partial(to_bytearray, "phy_payload"),
+    extra_serialize=partial(from_bytearray, "phy_payload"),
+)
+
+
+MulticastDownstreamMessageSerializer: GenericJSONSerializer[domains.MulticastDownstreamMessage] = GenericJSONSerializer(
+    domains.MulticastDownstreamMessage,
     extra_parse=partial(to_bytearray, "phy_payload"),
     extra_serialize=partial(from_bytearray, "phy_payload"),
 )

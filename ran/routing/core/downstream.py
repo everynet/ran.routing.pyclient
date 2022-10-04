@@ -29,11 +29,12 @@ class DownstreamConnection:
     :type session: aiohttp.ClientSession
     :param api_path: downstream API path
     :type api_path: URL
-    :param buffer_size: Size of internal Queue, used to store messages from ws, defaults to 1
+    :param buffer_size: Size of internal Queue, used to store messages from ws
+        recommended value is at least the number of workers reading data from the stream
     :type buffer_size: int
     """
 
-    def __init__(self, access_token: str, session: aiohttp.ClientSession, api_path: URL, buffer_size: int = 1):
+    def __init__(self, access_token: str, session: aiohttp.ClientSession, api_path: URL, buffer_size: int):
         self._identifier = os.urandom(8).hex()
         self._session = session
         self.__access_token = access_token
@@ -70,6 +71,51 @@ class DownstreamConnection:
             raise Exception(f"ws[{self._identifier}] Try to send wrong data type, expected str or bytes")
 
         return True
+
+    async def send_multicast_downstream(
+        self,
+        transaction_id: int,
+        addr: int,
+        tx_window: t.Union[dict, domains.TransmissionWindow],
+        phy_payload: t.Union[bytes, bytearray],
+    ):
+        """
+        Send multicast downstream message to downstream API. This method assembles downstream object from params and send it to
+        downstream API.
+
+        :param transaction_id: Unique transaction ID
+        :type transaction_id: int
+        :param addr: Address of multicast group uint32
+        :type addr: int
+        :param tx_window: TX window data, see domains.TxWindow
+        :type tx_window: t.Union[dict, domains.TransmissionWindow]
+        :param phy_payload: raw bytes of lora phy_payload
+        :type phy_payload: t.Union[bytes, bytearray]
+        :return: Return True on successful sending, otherwise raise exception
+        :rtype: bool
+        """
+
+        multicast_downstream_obj = domains.MulticastDownstreamMessage(
+            protocol_version=consts.PROTOCOL_VERSION,
+            transaction_id=transaction_id,
+            addr=addr,
+            tx_window=tx_window,
+            phy_payload=phy_payload,
+        )
+
+        return await self.send_multicast_downstream_object(multicast_downstream_obj)
+
+    async def send_multicast_downstream_object(self, multicast_downstream_message: domains.MulticastDownstreamMessage) -> bool:
+        """
+        Serialize multicast downstream message and send it to websocket.
+
+        :param multicast_downstream_message: downstream message to send
+        :type multicast_downstream_message: domains.DownstreamMessage
+        :return: Return True on successful sending, otherwise raise exception
+        :rtype: bool
+        """
+        data = serializers.json.MulticastDownstreamMessageSerializer.serialize(multicast_downstream_message)
+        return await self._send_to_ws(data)
 
     async def send_downstream(
         self,
@@ -143,6 +189,7 @@ class DownstreamConnection:
         :return: assembled downstream object
         :rtype: domains.DownstreamMessage
         """
+
         return domains.DownstreamMessage(
             protocol_version=consts.PROTOCOL_VERSION,
             transaction_id=transaction_id,
@@ -186,8 +233,11 @@ class DownstreamConnection:
         """
         while not self._closed.is_set():
             with suppress(asyncio.TimeoutError):
+                data_message = None
                 async with async_timeout.timeout(timeout):
-                    yield await self._downstream_buffer.get()
+                    data_message = await self._downstream_buffer.get()
+                if data_message is not None:
+                    yield data_message
 
         for _ in range(self._downstream_buffer.qsize()):
             yield await self._downstream_buffer.get()
@@ -344,11 +394,11 @@ class DownstreamConnectionManager:
         self.__session = session
         self.__api_path = api_path
 
-    async def create_connection(self) -> DownstreamConnection:
-        downstream_connection = DownstreamConnection(self.__access_token, self.__session, self.__api_path)
+    async def create_connection(self, buffer_size: int = 1) -> DownstreamConnection:
+        downstream_connection = DownstreamConnection(self.__access_token, self.__session, self.__api_path, buffer_size=buffer_size)
         await downstream_connection.connect()
 
         return downstream_connection
 
-    def __call__(self) -> DownstreamConnection:
-        return DownstreamConnection(self.__access_token, self.__session, self.__api_path)
+    def __call__(self, buffer_size: int = 1) -> DownstreamConnection:
+        return DownstreamConnection(self.__access_token, self.__session, self.__api_path, buffer_size=buffer_size)

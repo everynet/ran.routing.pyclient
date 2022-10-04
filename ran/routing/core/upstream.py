@@ -29,11 +29,12 @@ class UpstreamConnection:
     :type session: aiohttp.ClientSession
     :param api_path: upstream API path
     :type api_path: URL
-    :param buffer_size: Size of internal Queue, used to store messages from ws, defaults to 1
+    :param buffer_size: Size of internal Queue, used to store messages from ws,
+        recommended value is at least the number of workers reading data from the stream
     :type buffer_size: int
     """
 
-    def __init__(self, access_token: str, session: aiohttp.ClientSession, api_path: URL, buffer_size: int = 1):
+    def __init__(self, access_token: str, session: aiohttp.ClientSession, api_path: URL, buffer_size: int):
         self._identifier = os.urandom(8).hex()
         self._session = session
         self.__access_token = access_token
@@ -168,8 +169,11 @@ class UpstreamConnection:
         """
         while not self._closed.is_set():
             with suppress(asyncio.TimeoutError):
+                data_message = None
                 async with async_timeout.timeout(timeout):
-                    yield await self._upstream_buffer.get()
+                    data_message = await self._upstream_buffer.get()
+                if data_message is not None:
+                    yield data_message
 
         for _ in range(self._upstream_buffer.qsize()):
             yield await self._upstream_buffer.get()
@@ -320,11 +324,11 @@ class UpstreamConnectionManager:
         self.__session = session
         self.__api_path = api_path
 
-    async def create_connection(self) -> UpstreamConnection:
-        upstream_connection = UpstreamConnection(self.__access_token, self.__session, self.__api_path)
+    async def create_connection(self, buffer_size: int = 1) -> UpstreamConnection:
+        upstream_connection = UpstreamConnection(self.__access_token, self.__session, self.__api_path, buffer_size=buffer_size)
         await upstream_connection.connect()
 
         return upstream_connection
 
-    def __call__(self) -> UpstreamConnection:
-        return UpstreamConnection(self.__access_token, self.__session, self.__api_path)
+    def __call__(self, buffer_size: int = 1) -> UpstreamConnection:
+        return UpstreamConnection(self.__access_token, self.__session, self.__api_path, buffer_size=buffer_size)

@@ -9,6 +9,7 @@ from . import consts, domains
 from .downstream import DownstreamConnection, DownstreamConnectionManager
 from .routing_table import RoutingTable
 from .upstream import UpstreamConnection, UpstreamConnectionManager
+from .multicast_groups import MulticastGroupsManagement
 
 
 # HACK: Temporary solution to allow custom endpoints for RANAPI
@@ -19,6 +20,7 @@ class RanApiEndpointSchema:
     """
 
     routing: URL  #: Routing endpoint, defaults to :data:`.consts.ROUTING_TABLE_API_URL`.
+    multicast: URL  #: Multicast group management endpoint, defaults to :data:`.consts.MULTICAST_GROUPS_MANAGEMENT_API_URL`.
     upstream: URL  #: Upstream endpoint, defaults to :data:`.consts.UPSTREAM_API_URL`
     downstream: URL  #: Downstream endpoint, defaults to :data:`.consts.DOWNSTREAM_API_URL`
 
@@ -30,6 +32,7 @@ def _default_endpoint_schema(coverage: domains.Coverage) -> RanApiEndpointSchema
     """
     return RanApiEndpointSchema(
         routing=URL(consts.ROUTING_TABLE_API_URL.format(coverage=coverage)),
+        multicast=URL(consts.MULTICAST_GROUPS_MANAGEMENT_API_URL.format(coverage=coverage)),
         upstream=URL(consts.UPSTREAM_API_URL.format(coverage=coverage)),
         downstream=URL(consts.DOWNSTREAM_API_URL.format(coverage=coverage)),
     )
@@ -103,6 +106,8 @@ class Core:
     ):
         #: Routing table API, created by :meth:`.Core.connect`. Instance of :class:`.RoutingTable`.
         self.routing_table: RoutingTable = None  # type: ignore
+        #: Multicast groups management API, created by :meth:`.Core.connect`. Instance of :class:`.MulticastGroupsManagement`.
+        self.multicast_groups: MulticastGroupsManagement = None  # type: ignore
         #: Upstream connection manager, created by :meth:`.Core.connect`. Instance of :class:`.UpstreamConnectionManager`.
         self.upstream: UpstreamConnectionManager = None  # type: ignore
         #: Downstream connection manager factory, created by :meth:`.Core.connect`. Instance of :class:`.DownstreamConnectionManager`.
@@ -139,6 +144,9 @@ class Core:
 
         self.__session = aiohttp.ClientSession(headers={"Authorization": f"Bearer {self.__access_token}"})
         self.routing_table = RoutingTable(self.__session, api_path=self.__api_endpoint_schema.routing)
+        self.multicast_groups = MulticastGroupsManagement(
+            self.__session, api_path=self.__api_endpoint_schema.multicast
+        )
         self.upstream = UpstreamConnectionManager(
             access_token=self.__access_token, session=self.__session, api_path=self.__api_endpoint_schema.upstream
         )
@@ -162,6 +170,7 @@ class Core:
         await self.__session.close()
 
         self.routing_table: RoutingTable = None  # type: ignore
+        self.multicast_groups: MulticastGroupsManagement = None  # type: ignore
         self.upstream: UpstreamConnectionManager = None  # type: ignore
         self.downstream: DownstreamConnectionManager = None  # type: ignore
 
