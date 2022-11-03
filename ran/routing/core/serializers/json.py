@@ -5,7 +5,8 @@ from functools import partial
 
 from pydantic import BaseModel
 
-from .. import domains
+from ran.routing.core import domains
+
 from .interface import ISerializer
 
 T = t.TypeVar("T", bound=BaseModel)

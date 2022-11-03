@@ -36,10 +36,9 @@ class Device(BaseModel):
 
 
 class MulticastGroup(BaseModel):
-    id: int
+    addr: int
     created_at: datetime
     name: constr(max_length=255)
-    addr: int
     devices: t.List[int]
 
 

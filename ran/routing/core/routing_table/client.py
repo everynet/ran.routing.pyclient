@@ -7,7 +7,8 @@ import aiohttp
 from aiohttp.client_exceptions import ContentTypeError
 from yarl import URL
 
-from ..domains import Device
+from ran.routing.core.domains import Device
+
 from . import exceptions
 from .consts import ApiErrorCode
 
@@ -63,7 +64,7 @@ class RoutingTable:
                 # In other case just raise exception
                 raise error_class(error_description=error_description)  # type: ignore
 
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError, AttributeError):
                 logging.warning("Error extracting error details")
                 raise exceptions.ApiUnknownError(str(json_error))
 
@@ -293,13 +294,13 @@ class RoutingTable:
         :return: Amount of deleted devices
         :rtype: int
         """
-        json_body: t.Dict[str, t.Any] = {
+        json_body: t.Dict[str, t.List[str]] = {
             "DevEUIs": [],
         }
 
-        for dev_eui in dev_euis:
+        for idx, dev_eui in enumerate(dev_euis):
             if not self._is_uint64(dev_eui):
-                raise exceptions.ParameterError("dev_eui must be of type uint64")
+                raise exceptions.ParameterError(f"dev_eui #{idx} must be of type uint64")
             json_body["DevEUIs"].append(f"{dev_eui:016x}")
 
         async with self._client_session.post(self.__api_path / "devices" / "drop", json=json_body) as response:

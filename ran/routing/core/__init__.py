@@ -7,12 +7,11 @@ from yarl import URL
 
 from . import consts, domains
 from .downstream import DownstreamConnection, DownstreamConnectionManager
+from .multicast_groups import MulticastGroupsManagement
 from .routing_table import RoutingTable
 from .upstream import UpstreamConnection, UpstreamConnectionManager
-from .multicast_groups import MulticastGroupsManagement
 
 
-# HACK: Temporary solution to allow custom endpoints for RANAPI
 @dataclass
 class RanApiEndpointSchema:
     """
@@ -144,9 +143,7 @@ class Core:
 
         self.__session = aiohttp.ClientSession(headers={"Authorization": f"Bearer {self.__access_token}"})
         self.routing_table = RoutingTable(self.__session, api_path=self.__api_endpoint_schema.routing)
-        self.multicast_groups = MulticastGroupsManagement(
-            self.__session, api_path=self.__api_endpoint_schema.multicast
-        )
+        self.multicast_groups = MulticastGroupsManagement(self.__session, api_path=self.__api_endpoint_schema.multicast)
         self.upstream = UpstreamConnectionManager(
             access_token=self.__access_token, session=self.__session, api_path=self.__api_endpoint_schema.upstream
         )
@@ -185,12 +182,7 @@ class Core:
         await self.close()
 
 
-# FIXME: why?
-core = Core
-
-
 __all__ = [
-    "core",
     "Core",
     "RanApiEndpointSchema",
     "RoutingTable",

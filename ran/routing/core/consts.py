@@ -1,7 +1,4 @@
-PROTOCOL_VERSION = 1  #: Default protocol version
-
 ROUTING_TABLE_API_URL = "https://ran-routing.{coverage}.everynet.io/api/v1.0/"  #: Routing table default API URL
-# FIXME: set correct url
 MULTICAST_GROUPS_MANAGEMENT_API_URL = (  #: Multicast groups management API URL
     "https://ran-routing.{coverage}.everynet.io/api/v1.0/multicast/"
 )

@@ -8,7 +8,9 @@ import aiohttp
 import async_timeout
 from yarl import URL
 
-from . import consts, domains, serializers
+from ran.routing.core import domains, serializers
+
+from . import consts, exceptions
 
 
 class UpstreamConnection:
@@ -42,10 +44,8 @@ class UpstreamConnection:
 
         self._upstream_buffer: asyncio.Queue = asyncio.Queue(buffer_size)
 
-        self._listener_task: t.Optional[asyncio.Future] = None
-
         self._stop_event = asyncio.Event()
-        self._closed = asyncio.Event()
+        self._closed: asyncio.Future[t.Optional[str]] = asyncio.Future()
         self._opened = asyncio.Event()
         self._ws: t.Optional[aiohttp.client.ClientWebSocketResponse] = None
 
@@ -59,19 +59,30 @@ class UpstreamConnection:
         :return: Return True on successful sending, otherwise raise exception
         :rtype: bool
         """
-        if self._ws is None:
-            raise Exception(f"ws[{self._identifier}] UpstreamConnection has not yet been established")
+        if self.is_closed() or self._ws is None:
+            raise exceptions.UpstreamConnectionClosed(
+                f"ws[{self._identifier}] UpstreamConnection has not yet been established"
+            )
 
         if isinstance(data, bytes):
             await self._ws.send_bytes(data)
         elif isinstance(data, str):
             await self._ws.send_str(data)
         else:
-            raise Exception(f"ws[{self._identifier}] Try to send wrong data type, expected str or bytes")
+            raise exceptions.UpstreamError(f"ws[{self._identifier}] Try to send wrong data type, expected str or bytes")
 
         logging.debug(f"ws[{self._identifier}] send data {data}")  # type: ignore
 
         return True
+
+    def _raise_on_closed(self, force_raise_if_closed: bool = False) -> t.Optional[t.NoReturn]:
+        if self.is_closed():
+            close_result = self._closed.result()
+            if close_result is None and force_raise_if_closed:
+                raise exceptions.UpstreamConnectionClosedOk("Connection closed")
+            else:
+                raise exceptions.UpstreamConnectionClosedAbnormally(close_result)
+        return None
 
     async def send_upstream_ack(self, transaction_id: int, dev_eui: int, mic: int) -> bool:
         """
@@ -167,7 +178,7 @@ class UpstreamConnection:
         :yield: domains.UpstreamMessage
         :rtype: t.AsyncIterator[domains.UpstreamMessage]
         """
-        while not self._closed.is_set():
+        while not self.is_closed():
             with suppress(asyncio.TimeoutError):
                 data_message = None
                 async with async_timeout.timeout(timeout):
@@ -175,12 +186,16 @@ class UpstreamConnection:
                 if data_message is not None:
                     yield data_message
 
+        # Read all items from buffer, when stream already closed.
         for _ in range(self._upstream_buffer.qsize()):
             yield await self._upstream_buffer.get()
 
     async def recv(self, timeout: t.Optional[int] = None) -> t.Optional[domains.UpstreamMessage]:
         """
         Receives one message from upstream. Grants low-level control for message receiving flow.
+        If "recv()" method is called without established connection, an exception will be raised.
+        If the connection is closed during the "recv()" call (without timeout), an exception will be raised.
+        If some connection error happened during "recv()" call (without timeout), an exception will be raised.
 
         .. code-block:: python
             stopped = asyncio.Event()
@@ -192,11 +207,35 @@ class UpstreamConnection:
         :return: Returns upstream message. If timeout provided, and no message received, will return None
         :rtype: t.Optional[domains.UpstreamMessage]
         """
-        if timeout is None:
+
+        # If messages are already in buffer - return them. In other case - check closed state and raise an exception.
+        if not self._upstream_buffer.empty():
             return await self._upstream_buffer.get()
-        with suppress(asyncio.TimeoutError):
-            return await asyncio.wait_for(self._upstream_buffer.get(), timeout=timeout)
-        return None
+
+        if timeout is None:
+            recv_data_task = asyncio.create_task(self._upstream_buffer.get())
+
+            _, pending = await asyncio.wait(
+                {asyncio.create_task(self.wait_closed()), recv_data_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            pending_task = pending.pop()
+            pending_task.cancel()
+
+            try:
+                await pending_task
+            except asyncio.CancelledError:
+                pass
+
+            if pending_task != recv_data_task:
+                return recv_data_task.result()
+
+        else:
+            with suppress(asyncio.TimeoutError):
+                return await asyncio.wait_for(self._upstream_buffer.get(), timeout=timeout)
+
+        return self._raise_on_closed(force_raise_if_closed=True)
 
     async def connect(self) -> None:
         """
@@ -204,37 +243,51 @@ class UpstreamConnection:
         Without this task, "stream()" method will not produce messages.
         This method will not block code execution, because it only manages background task.
         """
-        if self._listener_task is None:
-            self._listener_task = asyncio.create_task(self._listener())
 
-        done, pending = await asyncio.wait(
-            {asyncio.create_task(self._closed.wait()), asyncio.create_task(self._opened.wait())},
+        if self.is_opened() or self.is_closed():
+            raise exceptions.UpstreamError("Connection already established or closed")
+
+        listener_task = asyncio.create_task(self._listener())
+
+        _, pending = await asyncio.wait(
+            {listener_task, asyncio.create_task(self._opened.wait())},
             return_when=asyncio.FIRST_COMPLETED,
         )
 
-        # Extract pending task and cancel it
-        task = pending.pop()
-        task.cancel()
+        # If listener stopped then cancel waiter and raise exception
+        pending_task = pending.pop()
+        if pending_task != listener_task:
+            pending_task.cancel()
 
-        # Waiting until task cancelled
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+            # Waiting until task cancelled
+            try:
+                await pending_task
+            except asyncio.CancelledError:
+                pass
+
+            # If listener task raised exception then reraise it, otherwise raise UpstreamConnecetionCloseError
+            exception = listener_task.exception()
+            if exception:
+                raise exception
+
+            return self._raise_on_closed()
 
     async def _listener(self) -> None:
+        close_result: t.Optional[str] = None
+
         try:
             logging.debug(
-                f"Starting listener for upstream websocket connection {self._identifier} for {str(self.__api_path)!r}"
+                f"Starting listener for upstream websocket connection ws[{self._identifier}] to"
+                f" {str(self.__api_path)!r}"
             )
             query_params = {"access_token": self.__access_token}
             async with self._session.ws_connect(self.__api_path, params=query_params) as ws:
                 self._ws = ws
                 self._opened.set()
-                logging.debug(f"Upstream websocket connection {self._identifier} established")
+                logging.debug(f"Upstream websocket connection ws[{self._identifier}] established")
 
                 while not self._stop_event.is_set():
-                    with suppress(asyncio.TimeoutError):  # TODO: add parse error
+                    with suppress(asyncio.TimeoutError):
                         ws_msg = await ws.receive(timeout=1)
 
                         logging.debug(f"Received from upstream ws[{self._identifier}] message: {ws_msg}")
@@ -250,34 +303,57 @@ class UpstreamConnection:
 
                             # NOTE: this method will block thread forever if upstream_buffer is full.
                             await self._upstream_buffer.put(upstream)
-
+                        elif ws_msg.type == aiohttp.WSMsgType.CLOSE:
+                            close_result = (
+                                f"Connection closed with ws closed_code: {ws_msg.data}; reason: {ws_msg.extra}"
+                            )
                         elif ws_msg.type == aiohttp.WSMsgType.CLOSED:
+                            if close_result is None:
+                                close_result = "Connection closed due to unknown network reason"
                             logging.warning(f"ws[{self._identifier}] Connection closed")
                             return
 
-            logging.debug(f"Stopped listener for upstream websocket connection {self._identifier}")
+            logging.debug(f"Stopped listener for upstream websocket connection ws[{self._identifier}]")
         except aiohttp.client_exceptions.WSServerHandshakeError as e:
             if e.status == 401:
-                logging.error(f"Unauthorized. Incorrect access_token sent. {self._identifier}")
+                close_result = "Unauthorized. Incorrect access_token sent."
+
+                logging.error(f"Unauthorized. Incorrect access_token sent. ws[{self._identifier}]")
             else:
+                close_result = f"Connection closed due to unhandled handshake error: {e}"
+
                 logging.exception(
-                    f"Catch unhandled handshake error in listener of websocket connection {self._identifier}:"
+                    f"Catch unhandled handshake error in listener of websocket connection ws[{self._identifier}]:"
                 )
-        except (aiohttp.ClientConnectionError, RuntimeError) as e:
+        except aiohttp.ClientConnectionError as e:
+            logging.exception(f"Catch unhandled error in listener of websocket connection ws[{self._identifier}]:")
+            close_result = f"Connection closed due to {e}"
             logging.error(f"aiohttp.ClientSession closed: {e}")
         except Exception:
-            logging.exception(f"Catch unhandled exception in listener of websocket connection {self._identifier}:")
+            close_result = "Connection closed due to internal error"
+            raise
         finally:
+            self._opened.clear()
             self._ws = None
-            self._closed.set()
-            logging.debug(f"Closed event set for upstream websocket connection {self._identifier}")
+            self._closed.set_result(close_result)
+
+            logging.debug(f"Closed event set for upstream websocket connection ws[{self._identifier}]")
 
     def close(self) -> None:
         """
         Close upstream connection.
         """
         self._stop_event.set()
-        logging.debug(f"Closing upstream connection {self._identifier}")
+        logging.debug(f"Closing upstream connection ws[{self._identifier}]")
+
+    def is_opened(self) -> bool:
+        """
+        Method returns True if connection is opened.
+
+        :return: Is connection closed
+        :rtype: bool
+        """
+        return self._opened.is_set()
 
     def is_closed(self) -> bool:
         """
@@ -286,7 +362,7 @@ class UpstreamConnection:
         :return: Is connection closed
         :rtype: bool
         """
-        return self._closed.is_set()
+        return self._closed.done()
 
     async def wait_closed(self) -> None:
         """
@@ -299,15 +375,15 @@ class UpstreamConnection:
 
         :raises Exception: Raises exception if connection in not established before closing
         """
-        if self._closed.is_set():
+        if self.is_closed():
             return
 
         # TODO: custom exceptions
         if not self._ws:
-            raise Exception(f"UpstreamConnection has not yet been established {self._identifier}")
+            raise Exception(f"UpstreamConnection has not yet been established ws[{self._identifier}]")
 
-        await self._closed.wait()
-        logging.debug(f"Upstream connection closed {self._identifier}")
+        await self._closed
+        logging.debug(f"Upstream connection closed ws[{self._identifier}]")
 
     async def __aenter__(self):
         await self.connect()
@@ -316,19 +392,3 @@ class UpstreamConnection:
     async def __aexit__(self, exc_type, exc, tb):
         self.close()
         await self.wait_closed()
-
-
-class UpstreamConnectionManager:
-    def __init__(self, access_token: str, session: aiohttp.ClientSession, api_path: URL):
-        self.__access_token = access_token
-        self.__session = session
-        self.__api_path = api_path
-
-    async def create_connection(self, buffer_size: int = 1) -> UpstreamConnection:
-        upstream_connection = UpstreamConnection(self.__access_token, self.__session, self.__api_path, buffer_size=buffer_size)
-        await upstream_connection.connect()
-
-        return upstream_connection
-
-    def __call__(self, buffer_size: int = 1) -> UpstreamConnection:
-        return UpstreamConnection(self.__access_token, self.__session, self.__api_path, buffer_size=buffer_size)
