@@ -2,20 +2,12 @@ import typing as t
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, conint, conlist, root_validator, validator, constr
+from pydantic import BaseModel, conint, conlist, constr, root_validator, validator
 
 
 class UpstreamRejectResultCode(str, Enum):
     MICFailed = "MICFailed"
     Other = "Other"
-
-
-class Coverage(str, Enum):
-    DEV = "dev"
-    EU = "eu"
-    US = "us"
-    AP = "ap"
-    ATC = "atc"
 
 
 class Device(BaseModel):

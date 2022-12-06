@@ -7,14 +7,14 @@ from ran.routing.core.multicast_groups.consts import ApiErrorCode
 
 @pytest.mark.asyncio
 async def test_multicast_groups_select(core: Core, client_session, make_multicast_group):
-    multicast_group_dict, multicast_group_model = make_multicast_group(id=1, addr=0xFFFFFFFF, name="test")
+    multicast_group_dict, multicast_group_model = make_multicast_group(addr=0xFFFFFFFF, name="test")
     client_session.post.return_value.__aenter__.return_value.ok = True
     client_session.post.return_value.__aenter__.return_value.json.return_value = [multicast_group_dict]
     client_session.post.return_value.__aenter__.return_value.status = 200
 
-    multicast_groups = await core.multicast_groups.get_multicast_groups(1)
+    multicast_groups = await core.multicast_groups.get_multicast_groups(0xFFFFFFFF)
     client_session.post.assert_called_with(
-        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "get", json={"ids": [1]}
+        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "get", json={"addrs": ["ffffffff"]}
     )
     assert multicast_groups[0] == multicast_group_model
 
@@ -44,5 +44,5 @@ async def test_multicast_groups_select_api_error(core: Core, client_session, api
     with pytest.raises(exception):
         await core.multicast_groups.get_multicast_groups()
     client_session.post.assert_called_with(
-        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "get", json={"ids": []}
+        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "get", json={"addrs": []}
     )

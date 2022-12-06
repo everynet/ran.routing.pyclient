@@ -5,7 +5,7 @@ from ran.routing.core import Core, domains
 
 
 async def main():
-    async with Core(access_token="secrettoken", coverage=domains.Coverage.DEV) as ran:
+    async with Core(access_token="...", url="...") as ran:
         async with ran.downstream() as downstream, ran.upstream() as upstream:
             # Receiving upstream
             msg = await upstream.recv(timeout=10)

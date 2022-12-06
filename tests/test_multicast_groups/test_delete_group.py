@@ -9,22 +9,38 @@ from ran.routing.core.multicast_groups.consts import ApiErrorCode
 
 
 @pytest.mark.asyncio
-async def test_multicast_groups_delete(core: Core, client_session):
+@pytest.mark.parametrize(
+    "delete_args,delete_body",
+    [
+        ([], []),
+        ([0xFFFFFFFF], ["ffffffff"]),
+        ([0xFFFFFFFE, 0xFFFFFFFF], ["fffffffe", "ffffffff"]),
+    ]
+)
+async def test_multicast_groups_delete(core: Core, client_session, delete_args, delete_body):
     client_session.post.return_value.__aenter__.return_value.ok = True
     client_session.post.return_value.__aenter__.return_value.status = 200
     client_session.post.return_value.__aenter__.return_value.json.return_value = {"deleted": 1}
 
-    deleted = await core.multicast_groups.delete_multicast_group(multicast_group_id=1)
+    deleted = await core.multicast_groups.delete_multicast_groups(addrs=delete_args)
     client_session.post.assert_called_with(
-        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "delete", json={"id": 1}
+        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "delete", json={"addrs": delete_body}
     )
     assert deleted == 1
 
 
 @pytest.mark.asyncio
-async def test_multicast_groups_delete_parameter_error(core: Core):
+@pytest.mark.parametrize(
+    "delete_arg",
+    [
+        "TEST",
+        -1,
+        0xFFFFFFFF + 10,
+    ]
+)
+async def test_multicast_groups_delete_parameter_error(core: Core, delete_arg):
     with pytest.raises(exceptions.ParameterError):
-        await core.multicast_groups.delete_multicast_group(multicast_group_id="TEST")
+        await core.multicast_groups.delete_multicast_groups(addrs=[delete_arg])
 
 
 @pytest.mark.asyncio
@@ -43,7 +59,7 @@ async def test_multicast_groups_delete_api_error(core: Core, client_session, api
     client_session.post.return_value.__aenter__.return_value.json.return_value = {"detail": {"error_code": api_error}}
 
     with pytest.raises(exception):
-        await core.multicast_groups.delete_multicast_group(multicast_group_id=1)
+        await core.multicast_groups.delete_multicast_groups(addrs=[0xFFFFFFFF])
     client_session.post.assert_called_with(
-        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "delete", json={"id": 1}
+        core._Core__api_endpoint_schema.multicast / "multicast-groups" / "delete", json={"addrs": ["ffffffff"]}
     )

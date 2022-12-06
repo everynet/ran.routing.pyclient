@@ -3,6 +3,7 @@ from yarl import URL
 
 from .connection import DownstreamConnection
 
+
 class DownstreamConnectionManager:
     def __init__(self, access_token: str, session: aiohttp.ClientSession, api_path: URL):
         self.__access_token = access_token

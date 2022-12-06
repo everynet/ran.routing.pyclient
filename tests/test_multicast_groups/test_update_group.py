@@ -25,13 +25,17 @@ async def test_multicast_groups_update_group(core: Core, client_session, multica
     client_session.post.return_value.__aenter__.return_value.json.return_value = multicast_group_dict
 
     multicast_group = await core.multicast_groups.update_multicast_group(
-        multicast_group_id=1,
-        name=multicast_group_model.name,
-        addr=multicast_group_model.addr,
+        addr=0xFFFFFFFF,
+        new_name=multicast_group_model.name,
+        new_addr=multicast_group_model.addr,
     )
+
     client_session.post.assert_called_with(
         core._Core__api_endpoint_schema.multicast / "multicast-groups" / "update",
-        json={"id": 1, "name": multicast_group_dict["name"], "addr": multicast_group_dict["addr"]},
+        json={
+            "addr": "ffffffff",
+            "update": {"name": multicast_group_model.name, "addr": f"{multicast_group_model.addr:08x}"},
+        },
     )
     assert multicast_group == multicast_group_model
 
@@ -51,9 +55,9 @@ async def test_multicast_groups_update_group_parameter_error(core: Core, client_
     multicast_group_dict, multicast_group_model = multicast_group
     with pytest.raises(exceptions.ParameterError):
         multicast_group = await core.multicast_groups.update_multicast_group(
-            multicast_group_id=1,
-            name=multicast_group_model.name,
-            addr=multicast_group_model.addr,
+            addr=0xFFFFFFFF,
+            new_name=multicast_group_model.name,
+            new_addr=multicast_group_model.addr,
         )
 
 
@@ -79,11 +83,14 @@ async def test_multicast_groups_update_group_api_error(
 
     with pytest.raises(exception):
         multicast_group = await core.multicast_groups.update_multicast_group(
-            multicast_group_id=1,
-            name=multicast_group_model.name,
-            addr=multicast_group_model.addr,
+            addr=0xFFFFFFFF,
+            new_name=multicast_group_model.name,
+            new_addr=multicast_group_model.addr,
         )
     client_session.post.assert_called_with(
         core._Core__api_endpoint_schema.multicast / "multicast-groups" / "update",
-        json={"id": 1, "name": multicast_group_dict["name"], "addr": multicast_group_dict["addr"]},
+        json={
+            "addr": "ffffffff",
+            "update": {"name": multicast_group_model.name, "addr": f"{multicast_group_model.addr:08x}"},
+        },
     )

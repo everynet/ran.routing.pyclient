@@ -25,7 +25,7 @@ class DownstreamConnection:
 
     .. code-block:: python
 
-        async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+        async with Core(access_token="...", url="...") as ran:
             async with ran.downstream() as downstream_connection:
                 pass
 
@@ -84,8 +84,10 @@ class DownstreamConnection:
     def _raise_on_closed(self, force_raise_if_closed: bool = False) -> t.Optional[t.NoReturn]:
         if self.is_closed():
             close_result = self._closed.result()
-            if close_result is None and force_raise_if_closed:
-                raise exceptions.DownstreamConnectionClosedOk("Connection closed")
+            if close_result is None:
+                if force_raise_if_closed:
+                    raise exceptions.DownstreamConnectionClosedOk("Connection closed")
+                return None
             else:
                 raise exceptions.DownstreamConnectionClosedAbnormally(close_result)
         return None

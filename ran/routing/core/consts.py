@@ -1,8 +1,22 @@
-ROUTING_TABLE_API_URL = "https://ran-routing.{coverage}.everynet.io/api/v1.0/"  #: Routing table default API URL
-MULTICAST_GROUPS_MANAGEMENT_API_URL = (  #: Multicast groups management API URL
-    "https://ran-routing.{coverage}.everynet.io/api/v1.0/multicast/"
-)
-UPSTREAM_API_URL = "wss://ran-routing.{coverage}.everynet.io/api/v1.0/stream/upstream"  #: Upstream API default API URL
-DOWNSTREAM_API_URL = (  #: Downstream API default API URL
-    "wss://ran-routing.{coverage}.everynet.io/api/v1.0/stream/downstream"
-)
+from enum import Enum, auto
+
+
+class RanRoutingApiService(Enum):
+    ROUTING = auto()
+    MULTICAST = auto()
+    UPSTREAM = auto()
+    DOWNSTREAM = auto()
+
+
+API_PATH_MAP = {
+    RanRoutingApiService.ROUTING: "/",
+    RanRoutingApiService.MULTICAST: "/multicast/",
+    RanRoutingApiService.UPSTREAM: "/stream/upstream/",
+    RanRoutingApiService.DOWNSTREAM: "/stream/downstream/",
+}
+API_SCHEMA_MAP = {
+    RanRoutingApiService.ROUTING: "https",
+    RanRoutingApiService.MULTICAST: "https",
+    RanRoutingApiService.UPSTREAM: "wss",
+    RanRoutingApiService.DOWNSTREAM: "wss",
+}

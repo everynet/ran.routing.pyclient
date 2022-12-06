@@ -1,4 +1,4 @@
-from ran.routing.core import Core, domains
+from ran.routing.core import Core
 
 
 async def main():
@@ -8,7 +8,7 @@ async def main():
     multicast_addr = 0xEEEEEEEE
     multicast_addr_2 = 0xCCCCCCCC
 
-    async with Core(access_token="secrettoken", coverage=domains.Coverage.DEV) as ran:
+    async with Core(access_token="...", url="...") as ran:
         # Creating device, which we will add into multicast group
         dev = await ran.routing_table.insert(dev_eui=dev_eui, dev_addr=dev_addr)
         print("Created device:\n", repr(dev), end="\n\n")
