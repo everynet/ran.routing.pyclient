@@ -3,7 +3,7 @@ import json
 import pytest
 
 from ran.routing.core import Core
-from ran.routing.core.domains import LoRaModulation, UpstreamMessage, UpstreamRadio, UpstreamRejectResultCode
+from ran.routing.core.domains import Gps, LoRaModulation, UpstreamMessage, UpstreamRadio, UpstreamRejectResultCode
 
 
 @pytest.mark.asyncio
@@ -46,6 +46,7 @@ async def test_upstream_creation_ctx(core: Core, client_session, client_session_
                 ),
                 phy_payload_no_mic=[0, 244, 104, 139, 79, 98, 207, 237, 60, 79, 23, 215, 147, 140, 27, 190, 122, 0, 0],
                 mic_challenge=[0xAA595854],
+                gps=Gps(lat=51.178889, lng=-1.826111, alt=None),
             ),
         )
     ],
@@ -81,6 +82,7 @@ async def test_upstream_stream_basic_receive(core: Core, client_session_ws):
                 ),
                 phy_payload_no_mic=[0, 244, 104, 139, 79, 98, 207, 237, 60, 79, 23, 215, 147, 140, 27, 190, 122, 0, 0],
                 mic_challenge=[0xAA595854],
+                gps=Gps(lat=51.178889, lng=-1.826111, alt=None),
             ),
         )
     ],
@@ -127,6 +129,7 @@ async def test_upstream_stream_recv_send_ack(core: Core, client_session_ws):
                 ),
                 phy_payload_no_mic=[0, 244, 104, 139, 79, 98, 207, 237, 60, 79, 23, 215, 147, 140, 27, 190, 122, 0, 0],
                 mic_challenge=[0xAA595854],
+                gps=Gps(lat=51.178889, lng=-1.826111, alt=None),
             ),
         )
     ],

@@ -3,13 +3,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from ran.routing.core import Core
-from ran.routing.core.domains import Coverage
 
 
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession", AsyncMock)
 async def test_core_basic_usage():
-    core = Core("token", Coverage.DEV)
+    core = Core("token", url="https://dev.cloud.dev.everynet.io/api/v1.0")
     assert core.routing_table is None
     assert core.upstream is None
     assert core.downstream is None
@@ -31,7 +30,7 @@ async def test_core_basic_usage():
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession", AsyncMock)
 async def test_core_context_usage():
-    async with Core("token", Coverage.DEV) as core:
+    async with Core("token", url="https://dev.cloud.dev.everynet.io/api/v1.0") as core:
         assert core._opened.is_set()
     assert core._Core__session.close.called
     assert core._closed.is_set()
@@ -40,7 +39,7 @@ async def test_core_context_usage():
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession", AsyncMock)
 async def test_double_connect_no_exc():
-    core = Core("token", Coverage.DEV)
+    core = Core("token", url="https://dev.cloud.dev.everynet.io/api/v1.0")
     assert core.routing_table is None
     assert core.upstream is None
     assert core.downstream is None
@@ -69,7 +68,7 @@ async def test_double_connect_no_exc():
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession", AsyncMock)
 async def test_double_connect_with_exc():
-    core = Core("token", Coverage.DEV)
+    core = Core("token", url="https://dev.cloud.dev.everynet.io/api/v1.0")
     assert core.routing_table is None
     assert core.upstream is None
     assert core.downstream is None
@@ -87,7 +86,7 @@ async def test_double_connect_with_exc():
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession", AsyncMock)
 async def test_double_close_no_exc():
-    core = Core("token", Coverage.DEV)
+    core = Core("token", url="https://dev.cloud.dev.everynet.io/api/v1.0")
     assert core.routing_table is None
     assert core.upstream is None
     assert core.downstream is None
@@ -116,7 +115,7 @@ async def test_double_close_no_exc():
 @pytest.mark.asyncio
 @patch("aiohttp.ClientSession", AsyncMock)
 async def test_double_close_with_exc():
-    core = Core("token", Coverage.DEV)
+    core = Core("token", url="https://dev.cloud.dev.everynet.io/api/v1.0")
     assert core.routing_table is None
     assert core.upstream is None
     assert core.downstream is None

@@ -38,7 +38,7 @@ async def upstream_loop_forever(ran: Core):
             )
 
 
-async def downstreeam_loop_forever(ran: Core, downstream_queue: asyncio.Queue):
+async def downstream_loop_forever(ran: Core, downstream_queue: asyncio.Queue):
     downstream_sync = DownstreamSync()
 
     async with ran.downstream() as downstream_conn:
@@ -91,14 +91,12 @@ class DownstreamSync:
 
 
 async def run_forever():
-    access_token = "secrettoken"
-
     downstream_queue = asyncio.Queue()  # pass this queue to your NS to send downstream messages to this queue
 
-    async with Core(access_token=access_token, coverage=domains.Coverage.DEV) as ran:
+    async with Core(access_token="...", url="...") as ran:
         device = await ran.routing_table.insert(dev_eui=123130, dev_addr=123)
 
-        await asyncio.gather(upstream_loop_forever(ran), downstreeam_loop_forever(ran, downstream_queue))
+        await asyncio.gather(upstream_loop_forever(ran), downstream_loop_forever(ran, downstream_queue))
 
 
 if __name__ == "__main__":

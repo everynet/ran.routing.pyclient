@@ -43,11 +43,11 @@ Here is a very quick walkthrough the client usage example to illustrate how easy
 ```python
 import asyncio
 
-from ran.routing.core import Core, domains
+from ran.routing.core import Core
 
 
 async def main():
-    async with Core(access_token="...", coverage=domains.Coverage.US) as ran:
+    async with Core(access_token="...", url="...") as ran:
         # Create routing table record
         device = await ran.routing_table.insert(dev_eui=0x7ABE1B8C93D7174F, join_eui=0x3CEDCF624F8B68F4)
 
@@ -102,17 +102,17 @@ It is needed to create `ran.routing.core.Core` object to create connect client t
 Object constructor takes two mandatory parameters:
 
 - `access_token` - RAN Routing API access token that can be obtained from Everynet support
-- `coverage` - instance of the `ran.routing.core.domains.Coverage` enum  that refers to one of the available coverage territories such as Brazil, Indonesia, USA, Italy, Spain, UK, ...
+- `url` - RAN Routing API url. That URL refers to one of the available API instances, which provides traffic from different territories such as Brazil, Indonesia, USA, Italy, Spain, UK, ...
 
-Note, thet it is necessary to create multiple `Core` objects if you want to gain access to the coverage in several territories simultaniously.
+Note, that it is necessary to create multiple `Core` objects if you want to gain access to the coverage in several territories simultaneously.
 
 RAN Routing API connections need to be opened and closed manually. In order to simplify that `Core` provides context manager, so it is possible to use "async with" statement with it. It will automatically open and close connections to the RAN Routing API.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
 async def main():
-    async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+    async with Core(access_token="...", url="...") as ran:
         # do something with core
         pass
 ```
@@ -125,10 +125,10 @@ Also, it is possible to manage connections via the `connect()` and `close()` met
 It is required to close connection after use.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
 async def main():
-    ran = Core(access_token="...", coverage=domains.Coverage.DEV)
+    ran = Core(access_token="...", url="...")
     await ran.connect()
     # do something with core
     await ran.close()
@@ -137,20 +137,21 @@ async def main():
 After establishing a connection with the RAN Routing API, you will gain access to the following attributes:
 
 * `ran.routing.core.Core.routing_table` - routing table management interface `ran.routing.core.RoutingTable`
+* `ran.routing.core.Core.multicast_groups` - multicast groups management interface `ran.routing.core.MulticastGroupsManagement`
 * `ran.routing.core.Core.upstream` - upstream message streaming interface `ran.routing.core.UpstreamConnectionManager`
-* `ran.routing.core.Core.downstream` - downstream message streaming iterface `ran.routing.core.DownstreamConnectionManager`
+* `ran.routing.core.Core.downstream` - downstream message streaming interface `ran.routing.core.DownstreamConnectionManager`
 
 These interfaces are discussed in the next chapters.
 
 
-### Managing RAN routing table
+## Managing RAN routing table
 
 You can access routing table by using the `ran.routing.core.Core.routing_table` attribute.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     devices = await ran.routing_table.select()
 ```
 
@@ -170,9 +171,9 @@ Method `ran.routing.core.RoutingTable.select` fetches existing devices from the 
 
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     # You can select devices by any of the following ways:
 
     # Select all devices (will return list of all devices)
@@ -204,9 +205,9 @@ Both `dev_eui` and `dev_addr` are mandatory parameters for ABP devices, while `d
 Provided `dev_eui` must be unique, while single `dev_addr` may be assigned to several `dev_eui`'s simultaneously.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     # Creating OTAA-device
     device = await ran.routing_table.insert(
         dev_eui=0x7abe1b8c93d7174f,
@@ -223,16 +224,16 @@ async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
 
 Updating device in the routing table is performed via the `ran.routing.core.RoutingTable.update` method.
 
-Update procedure changes `dev_addr` for an existed device in the routing table, where device is refered by the device's `dev_eui`. 
+Update procedure changes `dev_addr` for an existed device in the routing table, where device is referred by the device's `dev_eui`.
 
 This method is intended to be used by the client to set the new device address after the join request has been processed.
 
 Updating of the `dev_addr` is not allowed for ABP devices.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     # Updating device's dev_addr
     device = await ran.routing_table.update(
         dev_eui=0x7abe1b8c93d7174f,
@@ -246,9 +247,9 @@ async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
 Deleting devices from the routing table is performed via `ran.routing.core.RoutingTable.delete` method. It is needed to provide the list of `dev_eui` selected for deletion.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     # Updating device's dev_addr
     device = await ran.routing_table.delete(
         dev_euis=[0x7abe1b8c93d7174f, 0x7bbe1b8c93d7174a],
@@ -258,12 +259,144 @@ async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
 It is also possible to delete all devices in the routing table by calling `ran.routing.core.RoutingTable.delete_all` method.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     # Updating device's dev_addr
     device = await ran.routing_table.delete_all()
 ```
+
+## Managing multicast groups
+
+It is possible to get access to the RAN multicast groups by using the `ran.routing.core.Core.multicast_groups` attribute, but before that it is needed to connect client to the RAN Routing API.
+
+It provides several methods for managing the RAN routing table:
+
+- `ran.routing.core.MulticastGroupsManagement.create_multicast_group` - create new multicast group
+- `ran.routing.core.MulticastGroupsManagement.update_multicast_group` - update specific device multicast group
+- `ran.routing.core.MulticastGroupsManagement.get_multicast_groups` - fetch multicast groups
+- `ran.routing.core.MulticastGroupsManagement.delete_multicast_groups` - delete multicast group
+- `ran.routing.core.MulticastGroupsManagement.add_device_to_multicast_group` - add device to multicast group
+- `ran.routing.core.MulticastGroupsManagement.remove_device_from_multicast_group` - remove device from multicast group
+
+The methods are explained in details below...
+
+
+### Create multicast group
+
+New multicast group can be created with `ran.routing.core.MulticastGroupsManagement.create_multicast_group` method. This method requires group name and group address. It returns `ran.routing.core.domains.MulticastGroup` DTO-object that contains information about newly created multicast group.
+
+```python
+from ran.routing.core import Core
+
+async with Core(access_token="...", url="...") as ran:
+    multicast_group = await ran.multicast_groups.create_multicast_group(
+        name="test-multicast-group", 
+        addr=0xef046a1e
+    )
+```
+
+### Select multicast group
+
+Method `ran.routing.core.MulticastGroupsManagement.get_multicast_groups` fetches existing multicast groups from the routing table. It returns list of `ran.routing.core.domains.MulticastGroup` DTO-objects. You can select all groups (if no args provided), or specific groups, by passing groups addresses into this method.
+
+```python
+from ran.routing.core import Core
+
+async with Core(access_token="...", url="...") as ran:
+    # Fetching all groups
+    all_multicast_groups = await ran.multicast_groups.get_multicast_groups()
+
+    # Fetching one group (also returns list, but with one element)
+    multicast_groups = await ran.multicast_groups.get_multicast_groups(0xef046a1e)
+
+    # Fetching specific groups
+    multicast_groups = await ran.multicast_groups.get_multicast_groups(0xef046a1e, 0xffed8719)
+```
+
+### Update multicast group
+
+Method `ran.routing.core.MulticastGroupsManagement.update_multicast_group` can perform multicast group update procedure.
+
+You can update `addr` (address) or `name` of the multicast group (or both).
+
+Update procedure changes fields for an existed multicast group, where multicast group is referred by the it's `addr` (address). You need to provide at least one of new fields to make update.
+
+
+```python
+from ran.routing.core import Core
+
+async with Core(access_token="...", url="...") as ran:
+    # Updating name
+    multicast_group = await ran.multicast_groups.update_multicast_group(
+        addr=0xef046a1e, 
+        new_name="new-multicast-group-name"
+    )
+    # Updating addr
+    multicast_group = await ran.multicast_groups.update_multicast_group(
+        addr=0xef046a1e, 
+        new_addr=0xffffffff, 
+    )
+    # Updating all fields
+    multicast_group = await ran.multicast_groups.update_multicast_group(
+        addr=0xef046a1e, 
+        new_addr=0xffffffff, 
+        new_name="new-multicast-group-name"
+    )
+```
+
+### Manage multicast group devices
+
+Devices can be added or removed from multicast group by using:
+
+- `ran.routing.core.MulticastGroupsManagement.add_device_to_multicast_group` - for adding new device into multicast group.
+- `ran.routing.core.MulticastGroupsManagement.remove_device_from_multicast_group` - for removing existed device from multicast group.
+
+Only devices, already added into routing table can be added into multicast group.
+
+Only devices, already added into multicast group, can be removed from it.
+
+
+```python
+from ran.routing.core import Core
+
+async with Core(access_token="...", url="...") as ran:
+    # We need to create device first, before adding it into multicast group.
+    device = await ran.routing_table.insert(
+        dev_eui=0x7abe1b8c93d7174f,
+        dev_addr=0x627bb8bb
+    )
+    # Creating multicast group
+    multicast_group = await ran.multicast_groups.create_multicast_group(
+        name="test-multicast-group", 
+        addr=0xef046a1e
+    )
+
+    # Adding device into multicast group
+    multicast_group = await ran.multicast_groups.add_device_to_multicast_group(
+        addr=multicast_group.addr, 
+        dev_eui=device.dev_eui, 
+    )
+    # Removing device from multicast group
+    multicast_group = await ran.multicast_groups.remove_device_from_multicast_group(
+        addr=multicast_group.addr,
+        dev_eui=device.dev_eui,
+    )
+```
+
+### Delete multicast group
+
+Deleting multicast group is performed via `ran.routing.core.RoutingTable.delete_multicast_groups` method. It is needed to provide the list of `addr` of multicast groups, selected for deletion.
+
+```python
+from ran.routing.core import Core
+
+async with Core(access_token="...", url="...") as ran:
+    multicast_group = await ran.multicast_groups.delete_multicast_groups(
+        addrs=[0xef046a1e],
+    )
+```
+
 
 ## Sending and receiving messages
 
@@ -276,9 +409,9 @@ Connection is established by creating of the `ran.routing.core.UpstreamConnectio
 It is possible to access to `UpstreamConnectionManager` object by using `Core` attribute `ran.routing.core.Core.upstream`.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     async with ran.upstream() as upstream_connection:
         # do something with upstream connection
         pass
@@ -293,12 +426,12 @@ Each `UpstreamConnection` object uses the same TCP connection pool, that is mana
 
 It is also possible to manage upstream connection state manually by instanciating of the `UpstreamConnection` object manually via `ran.routing.core.UpstreamConnectionManager.create_connection` method.
 
-In this case you need to close connection manually as well.
+In this case you need to close connection manually as well. Unclosed connection may cause memory leak and data loss.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     upstream_connection = await ran.upstream.create_connection()
     # do something with upstream connection
     pass
@@ -310,16 +443,16 @@ async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
 
 ### Receiving upstream messages
 
-The main method, to receive upstrean message is via the `ran.routing.core.UpstreamConnection.stream()` method. 
+The main method, to receive upstream message is via the `ran.routing.core.UpstreamConnection.stream()` method. 
 
 This method returns async iterator, which will yield received upstream messages.
 
 Here is how to receive upstream messages:
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     async with ran.upstream() as upstream_connection:
         async for upstream_message in upstream_connection.stream():
             await handle_message(upstream_message)
@@ -337,9 +470,9 @@ Please use `UpstreamConnection` to send either `UpstreamAck` or `UpstreamReject`
 Following example has both UpstreamAck and UpstreamReject cases:
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     async with ran.upstream() as upstream_connection:
         async for message in upstream_connection.stream():
             try:
@@ -371,16 +504,16 @@ Connection to the downstream API is established via creation of the  `ran.routin
 It is possible to get access to the `DownstreamConnectionManager` object by using `Сore` attribute `ran.routing.core.Core.downstream`.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     async with ran.downstream() as downstream_connection:
         # do something with downstream connection
         pass
     
 # or
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     downstream_connection = await ran.downstream.create_connection()
     # do something with downstream connection here
     pass
@@ -396,9 +529,9 @@ The main purpose of the `DownstreamConnection` is to send messages back to devic
 This method requires parameters, which are described in the RAN Routing API specification.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     async with ran.downstream() as downstream_connection:
         # do something with downstream connection
         await downstream_connection.send_downstream(
@@ -441,14 +574,14 @@ def make_tx_window():
 
 ```
 
-To obtain info messages from `DownstreamConnection`, you can use interface similar to the `UpstreamConnection`. 
+To obtain info messages from `DownstreamConnection`, you can use interface similar to the `UpstreamConnection`.
 
 It is possible gain access to downstream messages by using `ran.routing.core.DownstreamConnection.stream` method.
 
 ```python
-from ran.routing.core import domains, Core
+from ran.routing.core import Core
 
-async with Core(access_token="...", coverage=domains.Coverage.DEV) as ran:
+async with Core(access_token="...", url="...") as ran:
     async with ran.downstream() as downstream_connection:
         async for downstream_message in downstream_connection.stream():
             await handle_downstream_message(downstream_message)
@@ -461,4 +594,36 @@ Downstream messages, obtained this way, can be of different types:
 
 Both of these messages have `transaction_id` field, which is used to identify message. It is similar to the `transaction_id`, you send in Downstream messages.
 
+
+### Sending multicast downstream messages
+
+Multicast messages can be sent with same `DownstreamConnection`, which used for regular downlink messages.
+
+You can send multicast downlinks, by using the `ran.routing.core.DownstreamConnection.send_multicast_downstream` method.
+
+This method requires parameters, which are described in the RAN Routing API specification.
+
+This parameters are pretty same, as in regular `send_downstream` downlinks, but instead of `dev_eui` of device using `addr` of multicast group as target, and don't support `target_dev_addr` field.
+
+```python
+from ran.routing.core import Core
+
+async with Core(access_token="...", url="...") as ran:
+    async with ran.downstream() as downstream_connection:
+        # do something with downstream connection
+        await downstream_connection.send_multicast_downstream(
+            # Client code must provide unique transaction_id, which will be sent in DownstreamAck and DownstreamResult messages.
+            transaction_id=next(counter),
+            # Multicast group address
+            addr=multicast_group_addr,
+            # Transmission window object, check example above.
+            tx_window=make_tx_window(),
+            # bytes of phy_payload, produced by network server.
+            phy_payload=phy_payload,
+        )
+```
+
+You need to use same `transaction_id` counter for multicast downlinks, you use for regular downlinks.
+
+You will receive `DownstreamAckMessage` and `DownstreamResultMessage` for multicast downstream, as for regular downlink.
 

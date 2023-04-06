@@ -2,20 +2,12 @@ import typing as t
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, conint, conlist, root_validator, validator
+from pydantic import BaseModel, conint, conlist, constr, root_validator, validator
 
 
 class UpstreamRejectResultCode(str, Enum):
     MICFailed = "MICFailed"
     Other = "Other"
-
-
-class Coverage(str, Enum):
-    DEV = "dev"
-    EU = "eu"
-    US = "us"
-    AP = "ap"
-    ATC = "atc"
 
 
 class Device(BaseModel):
@@ -33,6 +25,13 @@ class Device(BaseModel):
                 "One of the following values must be specified: JoinEUI (for OTAA device) or DevAddr (for ABP device)"
             )
         return values
+
+
+class MulticastGroup(BaseModel):
+    addr: int
+    created_at: datetime
+    name: constr(max_length=255)
+    devices: t.List[int]
 
 
 #################
@@ -77,6 +76,12 @@ class UpstreamRadio(BaseRadio):
     snr: float
 
 
+class Gps(BaseModel):
+    lat: float
+    lng: float
+    alt: t.Optional[float]
+
+
 class UpstreamMessage(BaseModel):
     protocol_version: conint(gt=0)
     transaction_id: conint(gt=0)
@@ -85,6 +90,7 @@ class UpstreamMessage(BaseModel):
     radio: UpstreamRadio
     phy_payload_no_mic: t.Union[bytes, t.List[conint(ge=0, le=0xFF)]]
     mic_challenge: t.List[conint(ge=0, le=0xFFFFFFFF)]
+    gps: t.Optional[Gps]
 
     @validator("phy_payload_no_mic")
     def payload_to_bytes(cls, v):
@@ -145,6 +151,14 @@ class DownstreamMessage(BaseModel):
     transaction_id: conint(gt=0)
     dev_eui: conint(ge=0, le=0xFFFFFFFFFFFFFFFF)
     target_dev_addr: t.Optional[conint(ge=0, le=0xFFFFFFFF)]
+    tx_window: TransmissionWindow
+    phy_payload: bytes
+
+
+class MulticastDownstreamMessage(BaseModel):
+    protocol_version: conint(gt=0)
+    transaction_id: conint(gt=0)
+    addr: conint(ge=0, le=0xFFFFFFFF)
     tx_window: TransmissionWindow
     phy_payload: bytes
 

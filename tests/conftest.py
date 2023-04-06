@@ -6,7 +6,6 @@ from aiohttp.http_websocket import WS_CLOSED_MESSAGE, WSMessage, WSMsgType
 
 from ran.routing.core import Core
 from ran.routing.core.domains import (
-    Coverage,
     DownstreamAckMessage,
     DownstreamMessage,
     DownstreamResultMessage,
@@ -94,5 +93,5 @@ def client_session(client_session_ws):
 @pytest.fixture(scope="function")
 async def core(client_session):
     with patch("aiohttp.ClientSession", lambda *a, **kw: client_session):
-        async with Core("token", Coverage.DEV) as core:
+        async with Core(access_token="token", url="https://dev.cloud.dev.everynet.io/api/v1.0") as core:
             yield core
