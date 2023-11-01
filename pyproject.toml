@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "ran"
 version = "0.1.0"
-description = "SDK for Radio Access Network API"
-authors = ["Alexey Zakharov <alexey.zakharov@everynet.com>", "Alexander Golubev <	alexander.golubev@everynet.com>"]
+description = "SDK for Everynet RAN-Routing API"
+authors = ["Alexey Zakharov <alexey.zakharov@everynet.com>", "Alexander Golubev <alexander.golubev@everynet.com>"]
 
-license = "MIT"  # TODO: Ensure used licence stype
+license = "MIT"
 readme = "README.md"
-homepage = "..."
-repository = "https://github.com/..."
+homepage = "https://github.com/everynet/ran.routing.pyclient"
+repository = "https://github.com/everynet/ran.routing.pyclient"
 keywords = ["lora", "everynet", "ran"]
 classifiers = [
   "Development Status :: 4 - Beta",

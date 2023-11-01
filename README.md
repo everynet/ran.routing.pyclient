@@ -626,4 +626,3 @@ async with Core(access_token="...", url="...") as ran:
 You need to use same `transaction_id` counter for multicast downlinks, you use for regular downlinks.
 
 You will receive `DownstreamAckMessage` and `DownstreamResultMessage` for multicast downstream, as for regular downlink.
-
