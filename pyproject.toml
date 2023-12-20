@@ -42,6 +42,7 @@ packages = [
 python = "^3.7"
 aiohttp = "^3.8.1"
 pydantic = "^1.9.1"
+async-timeout = "^4.0.3"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.961"
@@ -54,7 +55,6 @@ Sphinx = "^5.0.1"
 autodoc-pydantic = "^1.7.2"
 myst-parser = "^0.18.0"
 sphinx-material = "^0.0.35"
-
 
 [tool.isort]
 profile = "black"
